@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Direction Predictor</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                    <h2>StockPredict</h2>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Watchlist</h3>
+                <div id="watchlist" class="watchlist"></div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Recent</h3>
+                <div id="recent-searches" class="recent-list"></div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Prediction Log</h3>
+                <div id="prediction-log" class="prediction-log"></div>
+            </div>
+
+            <div class="sidebar-disclaimer">
+                This tool is for educational and portfolio demonstration purposes only. Not financial advice.
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="search-section">
+                <div class="search-wrapper">
+                    <svg class="search-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="ticker-input" placeholder="Search by ticker or company name..." autocomplete="off">
+                    <div id="search-spinner" class="search-spinner hidden"></div>
+                    <button id="predict-btn" onclick="handlePredict()">Analyze</button>
+                </div>
+                <div id="autocomplete-list" class="autocomplete-list hidden"></div>
+                <div id="error-msg" class="error-msg hidden"></div>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Analyzing market data...</p>
+            </div>
+
+            <div id="dashboard" class="dashboard hidden">
+
+                <div class="company-header">
+                    <div class="company-title">
+                        <h1 id="company-name"></h1>
+                        <div class="company-meta">
+                            <span id="company-ticker" class="ticker-badge"></span>
+                            <span id="company-exchange" class="meta-tag"></span>
+                            <span id="company-sector" class="meta-tag"></span>
+                            <span id="company-industry" class="meta-tag"></span>
+                        </div>
+                    </div>
+                    <div class="price-display">
+                        <span id="header-price" class="big-price"></span>
+                        <div class="price-change-row">
+                            <span id="header-change-abs" class="price-change-abs"></span>
+                            <span id="header-change-pct" class="price-change-pct"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-row">
+                    <div class="card prediction-card">
+                        <div class="card-header">
+                            <svg class="card-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                            <h3>ML Prediction</h3>
+                            <span class="horizon-badge" id="horizon-badge"></span>
+                        </div>
+                        <div id="result-direction" class="result-direction"></div>
+                        <div class="prediction-subtitle" id="prediction-subtitle">Next day direction forecast</div>
+                        <div class="prob-breakdown" id="prob-breakdown"></div>
+                        <div class="confidence-section">
+                            <span class="confidence-label">Confidence</span>
+                            <div class="confidence-bar-bg">
+                                <div id="confidence-bar" class="confidence-bar"></div>
+                            </div>
+                            <span id="confidence-value" class="confidence-value"></span>
+                        </div>
+                        <div id="prediction-summary" class="prediction-summary"></div>
+                        <div class="model-info" id="model-info"></div>
+                    </div>
+
+                    <div class="card stats-card">
+                        <div class="card-header">
+                            <svg class="card-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                            <h3>Key Statistics</h3>
+                        </div>
+                        <div id="stats-grid" class="stats-grid"></div>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="chart-top-row">
+                        <div class="card-header">
+                            <svg class="card-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>
+                            <h3>Price History</h3>
+                            <span id="chart-change" class="chart-change"></span>
+                        </div>
+                        <div class="chart-controls">
+                            <div class="chart-type-btns">
+                                <button class="ct-btn active" data-type="line" onclick="setChartType('line')">Line</button>
+                                <button class="ct-btn" data-type="candle" onclick="setChartType('candle')">Candlestick</button>
+                            </div>
+                            <div class="timeframe-btns" id="timeframe-btns">
+                                <button class="tf-btn" data-tf="1d">1D</button>
+                                <button class="tf-btn" data-tf="5d">5D</button>
+                                <button class="tf-btn active" data-tf="1m">1M</button>
+                                <button class="tf-btn" data-tf="6m">6M</button>
+                                <button class="tf-btn" data-tf="1y">1Y</button>
+                            </div>
+                            <div class="indicator-toggles">
+                                <button class="ind-btn" id="toggle-sma20" onclick="toggleIndicator('sma20')">SMA 20</button>
+                                <button class="ind-btn" id="toggle-sma50" onclick="toggleIndicator('sma50')">SMA 50</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-area">
+                        <div class="price-chart-wrapper">
+                            <canvas id="price-chart"></canvas>
+                        </div>
+                        <div class="volume-chart-wrapper">
+                            <canvas id="volume-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card compare-card">
+                    <div class="card-header">
+                        <svg class="card-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        <h3>Compare Performance</h3>
+                    </div>
+                    <div class="compare-inputs">
+                        <input type="text" id="compare-a" class="compare-input" placeholder="Ticker 1 (e.g. NVDA)">
+                        <span class="compare-vs">vs</span>
+                        <input type="text" id="compare-b" class="compare-input" placeholder="Ticker 2 (e.g. AMD)">
+                        <button class="compare-btn" onclick="handleCompare()">Compare</button>
+                    </div>
+                    <div id="compare-summary" class="compare-summary hidden"></div>
+                    <div class="chart-wrapper" id="compare-chart-wrapper" style="display:none;">
+                        <canvas id="compare-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid-row">
+                    <div class="card explanation-card">
+                        <div class="card-header">
+                            <svg class="card-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
+                            <h3>Prediction Factors</h3>
+                        </div>
+                        <div id="explanations-list" class="explanations-list"></div>
+                        <div id="features-list" class="features-list"></div>
+                    </div>
+
+                    <div class="card news-card">
+                        <div class="card-header">
+                            <svg class="card-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/></svg>
+                            <h3>Latest News</h3>
+                        </div>
+                        <div id="news-summary" class="news-summary"></div>
+                        <div id="news-list" class="news-list"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
